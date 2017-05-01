@@ -1,0 +1,32 @@
+{
+  "name": "fetracer",
+  "version": "1.0.0",
+  "description": "online analysis of frontend codes",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/shenfe/FeTracer"
+  },
+  "keywords": [
+    "frontend",
+    "analysis",
+    "trace",
+    "debug"
+  ],
+  "author": "keshen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shenfe/FeTracer/issues"
+  },
+  "homepage": "https://github.com/shenfe/FeTracer",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "connect-multiparty": "^2.0.0",
+    "express": "^4.15.2",
+    "js-beautify": "^1.6.11",
+    "superagent": "^3.5.0"
+  }
+}
