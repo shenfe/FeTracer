@@ -6,7 +6,9 @@
     "permissions": [
         "webRequest",
         "activeTab",
-        "<all_urls>"
+        "<all_urls>",
+        "storage",
+        "tabs"
     ],
     "background": {
         "scripts": [

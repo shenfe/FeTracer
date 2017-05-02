@@ -1,7 +1,21 @@
 var connections = {};
 
+var tabUrls = {};
+
 var copy = function (obj) {
     return JSON.parse(JSON.stringify(obj));
+};
+
+var _rule = {};
+
+var escapeRegExp = function (str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
+};
+
+var matchPattern = function (url, pat) {
+    pat = pat.split('*').map(escapeRegExp).join('(.*)');
+    var reg = new RegExp(pat);
+    return reg.test(url);
 };
 
 chrome.runtime.onConnect.addListener(function (port) {
@@ -10,14 +24,20 @@ chrome.runtime.onConnect.addListener(function (port) {
 
         // The original connection event doesn't include the tab ID of the
         // DevTools page, so we need to send it explicitly.
-        if (message.name === 'init') {
-            connections[message.tabId] = port;
-            //TODO
-
-            return;
+        switch (message.name) {
+            case 'init': {
+                connections[message.tabId] = port;
+                return;
+            }
+            case 'rule': {
+                _rule = message.content;
+                return;
+            }
+            case 'tabUrl': {
+                tabUrls[message.tabId] = message.content;
+                return;
+            }
         }
-
-        // other message handling
     };
 
     // Listen to messages sent from the DevTools page
@@ -37,28 +57,32 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 });
 
-// Receive message from content script and relay to the devTools page for the current tab
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    console.log('incoming message from the injected script');
-
-    // Messages from content scripts should have sender.tab set
-    if (sender.tab) {
-        var tabId = sender.tab.id;
-        if (tabId in connections) {
-            connections[tabId].postMessage(request);
-        } else {
-            console.log('tab not found in connection list');
-        }
-    } else {
-        console.log('`sender.tab` not defined');
-    }
-
-    return true;
-});
-
 // Request hijacking
 chrome.webRequest.onBeforeRequest.addListener(function (details) {
     if (details.tabId in connections) {
-        connections[details.tabId].postMessage(copy(details));
+        connections[details.tabId].postMessage({
+            name: 'requestComes',
+            content: copy(details)
+        });
+        var tabUrlPats = Object.keys(_rule);
+        for (let tup of tabUrlPats) {
+            if (matchPattern(tabUrls[details.tabId], tup)) {
+                var resourceUrlPats = _rule[tup];
+                if (resourceUrlPats.length === undefined) {
+                    resourceUrlPats = Object.keys(resourceUrlPats);
+                }
+                for (let rup of resourceUrlPats) {
+                    if (matchPattern(details.url, rup)) {
+                        var oUrl = details.url;
+                        connections[details.tabId].postMessage({
+                            name: 'requestMatches',
+                            content: oUrl
+                        });
+                        return { redirectUrl: 'http://127.0.0.1:4004/get/' + encodeURIComponent(oUrl) };
+                    }
+                }
+                break;
+            }
+        }
     }
 }, {urls: ["http://*/*", "https://*/*"]});
