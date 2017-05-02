@@ -1,5 +1,9 @@
 var connections = {};
 
+var copy = function (obj) {
+    return JSON.parse(JSON.stringify(obj));
+};
+
 chrome.runtime.onConnect.addListener(function (port) {
     var extensionListener = function (message, sender, sendResponse) {
         console.log('incoming message from the DevTools page');
@@ -51,3 +55,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
     return true;
 });
+
+// Request hijacking
+chrome.webRequest.onBeforeRequest.addListener(function (details) {
+    if (details.tabId in connections) {
+        connections[details.tabId].postMessage(copy(details));
+    }
+}, {urls: ["http://*/*", "https://*/*"]});

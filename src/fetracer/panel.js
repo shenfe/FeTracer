@@ -19,6 +19,6 @@ backgroundPageConnection.postMessage({
 
 backgroundPageConnection.onMessage.addListener(function (message) {
     // Incoming message from the background page
-    
+    $('log').value += JSON.stringify(message) + '\n';
     return true;
 });

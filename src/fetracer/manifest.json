@@ -5,7 +5,8 @@
     "devtools_page": "devtools.html",
     "permissions": [
         "webRequest",
-        "activeTab"
+        "activeTab",
+        "<all_urls>"
     ],
     "background": {
         "scripts": [
