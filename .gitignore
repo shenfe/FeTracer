@@ -1,2 +1,5 @@
 *node_modules*
 src/resources
+src/sslcert/csr.pem
+src/sslcert/file.crt
+src/sslcert/private.pem

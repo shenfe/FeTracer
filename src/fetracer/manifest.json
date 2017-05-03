@@ -5,6 +5,7 @@
     "devtools_page": "devtools.html",
     "permissions": [
         "webRequest",
+        "webRequestBlocking",
         "activeTab",
         "<all_urls>",
         "storage",
@@ -15,12 +16,21 @@
             "background.js"
         ]
     },
+    "browser_action": {
+        "default_icon": {
+            "16": "images/icon16.png",
+            "24": "images/icon24.png",
+            "32": "images/icon32.png"
+        },
+        "default_title": "FeTracer",
+        "default_popup": "popup.html"
+    },
     "icons": {
-        "16": "icon16.png",
-        "48": "icon48.png",
-        "128": "icon128.png",
-        "19": "icon19.png",
-        "38": "icon38.png"
+        "16": "images/icon16.png",
+        "48": "images/icon48.png",
+        "128": "images/icon128.png",
+        "19": "images/icon19.png",
+        "38": "images/icon38.png"
     },
     "manifest_version": 2
 }

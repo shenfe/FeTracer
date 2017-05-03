@@ -1,13 +1,25 @@
 var conf = {
     pullDir: 'resources', // the dir name
-    serverPort: 4004
+    // httpServerPort: 4003,
+    httpsServerPort: 4004
 };
 
 var express = require('express');
+var fs = require('fs');
+
+// var http = require('http');
+var https = require('https');
+var privateKey  = fs.readFileSync('sslcert/private.pem', 'utf8');
+var certificate = fs.readFileSync('sslcert/file.crt', 'utf8');
+var credentials = {key: privateKey, cert: certificate};
+
 var app = express();
+// var server = http.createServer(app);
+// server.listen(conf.httpServerPort);
+var sserver = https.createServer(credentials, app);
+sserver.listen(conf.httpsServerPort);
 
 var superagent = require('superagent');
-var fs = require('fs');
 var jsBeautify = require('js-beautify').js;
 
 APP_USE: {
@@ -33,7 +45,11 @@ REQ_HANDLE: {
         console.log('get: ' + url);
         superagent.get(url)
             .then(function (pres, err) {
-                res.send(pres.text);
+                // res.send(pres.text);
+
+                var filePath = conf.pullDir + '/' + req.params.url;
+                fs.writeFileSync(filePath, pres.text);
+                res.download(filePath, url.split('/').pop());
             });
     });
 }
@@ -53,7 +69,3 @@ ENSURE_RESOURCE_DIR: {
     };
     mkDir(conf.pullDir);
 }
-
-app.listen(conf.serverPort, function () {
-    console.log('Listening on port %d', conf.serverPort);
-});

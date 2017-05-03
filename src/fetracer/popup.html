@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+    <head>
+        <title>fetracer</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            #wrap {
+                display: flex;
+                flex-direction: column;
+                width: 400px;
+                height: 300px;
+            }
+            #wrap>textarea {
+                flex: 1;
+                box-sizing: border-box;
+            }
+            #ctrl {
+                height: 32px;
+                line-height: 32px;
+                text-align: center;
+            }
+        </style>
+        <script src="popup.js"></script>
+    </head>
+    <body>
+        <div id="wrap">
+            <textarea id="rule"></textarea>
+            <div id="ctrl">
+                <button id="save">save</button>
+            </div>
+        </div>
+    </body>
+</html>
