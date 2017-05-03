@@ -1,11 +1,16 @@
 var conf = {
     pullDir: 'resources', // the dir name
+    cacheDir: 'cache',
     // httpServerPort: 4003,
-    httpsServerPort: 4004
+    httpsServerPort: 4004,
+    httpsServerHost: 'https://127.0.0.1'
 };
 
 var express = require('express');
 var fs = require('fs');
+var path = require('path');
+var serveIndex = require('serve-index');
+var exec = require('child_process').exec;
 
 // var http = require('http');
 var https = require('https');
@@ -19,7 +24,6 @@ var app = express();
 var sserver = https.createServer(credentials, app);
 sserver.listen(conf.httpsServerPort);
 
-var superagent = require('superagent');
 var jsBeautify = require('js-beautify').js;
 
 APP_USE: {
@@ -36,21 +40,30 @@ APP_USE: {
     app.use(allowCrossDomain);
 
     app.use(express.static(__dirname));
-    app.use(express.static(__dirname + '/' + conf.pullDir));
+    app.use('/', serveIndex(path.join(__dirname, conf.pullDir)));
+    app.use('/', express.static(path.join(__dirname, conf.pullDir)));
 }
+
+// Function to download file using wget
+var downloadFile = function (file_url, file_name, callback) {
+    // compose the wget command
+    var wget = 'wget -O ' + conf.cacheDir + '/' + file_name + ' ' + file_url;
+    // excute wget using child_process' exec function
+    var child = exec(wget, function(err, stdout, stderr) {
+        if (err) throw err;
+        else callback(conf.pullDir + '/' + file_name, fs.readFileSync(conf.cacheDir + '/' + file_name, 'utf8'));
+    });
+};
 
 REQ_HANDLE: {
     app.get('/get/:url', function (req, res) {
         var url = decodeURIComponent(req.params.url);
+        var urlEncoded = encodeURIComponent(req.params.url);
         console.log('get: ' + url);
-        superagent.get(url)
-            .then(function (pres, err) {
-                // res.send(pres.text);
-
-                var filePath = conf.pullDir + '/' + req.params.url;
-                fs.writeFileSync(filePath, pres.text);
-                res.download(filePath, url.split('/').pop());
-            });
+        downloadFile(url, urlEncoded, function (filePath, fileContent) {
+            fs.writeFileSync(filePath, fileContent);
+            res.sendFile(__dirname + '/' + filePath);
+        });
     });
 }
 
@@ -68,4 +81,5 @@ ENSURE_RESOURCE_DIR: {
         if (!pathExists(path)) fs.mkdirSync(path, 0777);
     };
     mkDir(conf.pullDir);
+    mkDir(conf.cacheDir);
 }

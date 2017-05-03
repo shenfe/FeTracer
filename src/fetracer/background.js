@@ -7,7 +7,7 @@ var urlRuleTable = {};
 var msgHistory = {};
 
 var redirectTypeFilter = {
-    stylesheet: true,
+    // stylesheet: true,
     script: true
 };
 
