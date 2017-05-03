@@ -61,7 +61,7 @@ REQ_HANDLE: {
         var urlEncoded = encodeURIComponent(req.params.url);
         console.log('get: ' + url);
         downloadFile(url, urlEncoded, function (filePath, fileContent) {
-            fs.writeFileSync(filePath, fileContent);
+            fs.writeFileSync(filePath, jsBeautify(fileContent));
             res.sendFile(__dirname + '/' + filePath);
         });
     });
