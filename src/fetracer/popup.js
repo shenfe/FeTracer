@@ -29,8 +29,6 @@ document.addEventListener('DOMContentLoaded', function () {
             _rule = {};
         }
         $rule.value = JSON.stringify(_rule, null, 4);
-
-        sendRuleToBg();
     });
 
     $save.addEventListener('click', saveRule, false);

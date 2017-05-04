@@ -4,6 +4,15 @@ var tabUrls = {};
 
 var urlRuleTable = {};
 
+chrome.storage.sync.get('rule', function (items) {
+    try {
+        var _rule = JSON.parse(items.rule);
+        urlRuleTable = _rule;
+    } catch (e) {
+        console.log('invalid rule stored');
+    }
+});
+
 var msgHistory = {};
 
 var redirectTypeFilter = {
@@ -138,7 +147,7 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
             for (let rup of resourceUrlPats) {
                 if (redirectTypeFilter[details.type] && matchPattern(details.url, rup)
                     && details.url.indexOf(redirectServerHost) !== 0) {
-                        
+
                     var oUrl = details.url;
                     sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
 
