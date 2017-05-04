@@ -11,6 +11,10 @@ var redirectTypeFilter = {
     script: true
 };
 
+var urlWhiteList = {};
+
+var redirectServerHost = 'https://127.0.0.1:4004';
+
 var copy = function (obj, props) {
     var re;
     if (props && props.length) {
@@ -132,10 +136,14 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
                 resourceUrlPats = Object.keys(resourceUrlPats);
             }
             for (let rup of resourceUrlPats) {
-                if (redirectTypeFilter[details.type] && matchPattern(details.url, rup)) {
+                if (redirectTypeFilter[details.type] && matchPattern(details.url, rup)
+                    && details.url.indexOf(redirectServerHost) !== 0) {
+                        
                     var oUrl = details.url;
                     sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
-                    return { redirectUrl: 'https://127.0.0.1:4004/get/' + encodeURIComponent(oUrl) };
+
+                    var nUrl = redirectServerHost + '/get/' + encodeURIComponent(oUrl);
+                    return { redirectUrl: nUrl };
                 }
             }
             break;

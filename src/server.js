@@ -44,41 +44,87 @@ APP_USE: {
     app.use('/', express.static(path.join(__dirname, conf.pullDir)));
 }
 
-// Function to download file using wget
-var downloadFile = function (file_url, file_name, callback) {
-    // compose the wget command
-    var wget = 'wget -O ' + conf.cacheDir + '/' + file_name + ' ' + file_url;
-    // excute wget using child_process' exec function
-    var child = exec(wget, function(err, stdout, stderr) {
-        if (err) throw err;
-        else callback(conf.pullDir + '/' + file_name, fs.readFileSync(conf.cacheDir + '/' + file_name, 'utf8'));
-    });
-};
+SCRIPT_PARSE: {
+    var scriptPipelines = [
+        function (script) {
+            return jsBeautify(script);
+        },
+        function (script) {
+            return script;
+        },
+    ];
+}
 
 REQ_HANDLE: {
+    var downloadFile = function (fileUrl, filePath, callback) {
+        var targetFilePath = conf.cacheDir + '/' + filePath;
+        ensurePath(targetFilePath.substring(0, targetFilePath.lastIndexOf('/')));
+        var wget = 'wget -O ' + targetFilePath + ' ' + fileUrl;
+        var child = exec(wget, function(err, stdout, stderr) {
+            if (err) throw err;
+            else callback(filePath);
+        });
+    };
+    var rmFileNameQuery = function (s) {
+        var p = s.lastIndexOf('.') + 1;
+        var chatCodes = {
+            'a': 'a'.charCodeAt(0),
+            'z': 'z'.charCodeAt(0),
+            'A': 'A'.charCodeAt(0),
+            'Z': 'Z'.charCodeAt(0)
+        };
+        var len = s.length;
+        while (p < len) {
+            var c = s.charCodeAt(p);
+            if ((chatCodes['a'] <= c && c <= chatCodes['z']) || (chatCodes['A'] <= c && c <= chatCodes['Z'])) {
+                p++;
+            } else {
+                break;
+            }
+        }
+        return s.substring(0, p);
+    };
+
     app.get('/get/:url', function (req, res) {
-        var url = decodeURIComponent(req.params.url);
-        var urlEncoded = encodeURIComponent(req.params.url);
+        var url = rmFileNameQuery(decodeURIComponent(req.params.url));
+        var destPath = url.substr(url.indexOf('//') + 2);
         console.log('get: ' + url);
-        downloadFile(url, urlEncoded, function (filePath, fileContent) {
-            fs.writeFileSync(filePath, jsBeautify(fileContent));
-            res.sendFile(__dirname + '/' + filePath);
+        downloadFile(url, destPath, function (filePath) {
+            var fileFullPath = conf.pullDir + '/' + filePath;
+            ensurePath(fileFullPath.substring(0, fileFullPath.lastIndexOf('/')));
+            var fileContent = fs.readFileSync(conf.cacheDir + '/' + filePath, 'utf8');
+            scriptPipelines.forEach(p => {
+                fileContent = p(fileContent);
+            });
+            fs.writeFileSync(fileFullPath, fileContent);
+            // res.sendFile(__dirname + '/' + fileFullPath);
+            res.redirect('/' + filePath);
         });
     });
 }
 
 ENSURE_RESOURCE_DIR: {
-    var pathExists = function (path) {
+    var ensurePath = function (filePath) {
+        if (!filePath) return;
+        if (filePath.charAt(0) === '/') filePath = filePath.substr(1);
+        var dirs = filePath.split('/');
+        var pre = ['.'];
+        for (var i = 0, len = dirs.length; i < len; i++) {
+            pre.push(dirs[i]);
+            var p = pre.join('/');
+            if (!pathExists(p)) fs.mkdirSync(p, 0777);
+        }
+    };
+    var pathExists = function (p) {
         try {
-            fs.accessSync(path, fs.F_OK);
+            fs.accessSync(p, fs.F_OK);
         } catch (e) {
             return false;
         }
         return true;
     };
-
-    var mkDir = function (path) {
-        if (!pathExists(path)) fs.mkdirSync(path, 0777);
+    var mkDir = function (d) {
+        if (!pathExists(d)) fs.mkdirSync(d, 0777);
     };
     mkDir(conf.pullDir);
     mkDir(conf.cacheDir);
