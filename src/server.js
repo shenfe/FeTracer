@@ -25,6 +25,7 @@ var sserver = https.createServer(credentials, app);
 sserver.listen(conf.httpsServerPort);
 
 var jsBeautify = require('js-beautify').js;
+var Prepack = require('prepack');
 
 APP_USE: {
     var bodyParser = require('body-parser');
@@ -46,6 +47,9 @@ APP_USE: {
 
 SCRIPT_PARSE: {
     var scriptPipelines = [
+        // function (script) {
+        //     return Prepack.prepack(script).code;
+        // },
         function (script) {
             return jsBeautify(script);
         },
