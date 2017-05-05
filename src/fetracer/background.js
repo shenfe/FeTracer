@@ -20,7 +20,7 @@ var redirectTypeFilter = {
     script: true
 };
 
-var urlWhiteList = {};
+var redirectWhiteList = {};
 
 var redirectServerHost = 'https://127.0.0.1:4004';
 
@@ -43,8 +43,38 @@ var escapeRegExp = function (str) {
 
 var matchPattern = function (url, pat) {
     pat = pat.split('*').map(escapeRegExp).join('(.*)');
-    var reg = new RegExp(pat);
+    var reg = new RegExp(pat, 'g');
     return reg.test(url);
+};
+
+var objToQueryString = function (obj) {
+    var queries = [];
+    for (var i in obj) {
+        if (!obj.hasOwnProperty(i)) continue;
+        queries.push(i + '=' + encodeURIComponent(obj[i]));
+    }
+    return queries.length ? ('?' + queries.join('&')) : '';
+};
+
+if (!String.prototype.replaceAll) {
+    String.prototype.replaceAll = function (search, replacement) {
+        var target = this;
+        return target.split(search).join(replacement);
+    };
+}
+
+var patternTrans = function (url, matchPat, replacePat) {
+    matchPat = matchPat.split('*').map(escapeRegExp).join('(.*)');
+    var reg = new RegExp(matchPat, 'g');
+    var res = reg.exec(url);
+    if (res && res[0]) {
+        var i = 1;
+        while (typeof res[i] === 'string') {
+            replacePat = replacePat.replaceAll('${' + i + '}', res[i]);
+            i++;
+        }
+        return replacePat;
+    } else return null;
 };
 
 var sendMsg2Panel = function (tid, type, data) {
@@ -137,24 +167,83 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 // Request hijacking
 chrome.webRequest.onBeforeRequest.addListener(function (details) {
     sendMsg2Panel(details.tabId, 'requestComes', copy(details, ['url', 'type']));
-    var tabUrlPats = Object.keys(urlRuleTable);
-    for (let tup of tabUrlPats) {
+
+    if (!redirectTypeFilter[details.type]) return;
+
+    var tabUrlPatterns = Object.keys(urlRuleTable);
+    for (let tup of tabUrlPatterns) {
         if (matchPattern(tabUrls[details.tabId], tup)) {
             var resourceUrlPats = urlRuleTable[tup];
-            if (resourceUrlPats.length === undefined) {
-                resourceUrlPats = Object.keys(resourceUrlPats);
-            }
-            for (let rup of resourceUrlPats) {
-                if (redirectTypeFilter[details.type] && matchPattern(details.url, rup)
-                    && details.url.indexOf(redirectServerHost) !== 0) {
 
-                    var oUrl = details.url;
-                    sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
+            var typeOfResourceUrlPats = Object.prototype.toString.call(resourceUrlPats);
 
-                    var nUrl = redirectServerHost + '/get/' + encodeURIComponent(oUrl);
-                    return { redirectUrl: nUrl };
+            if (typeOfResourceUrlPats === '[object Object]') {
+                var resourceUrlPatKeys = Object.keys(resourceUrlPats);
+                for (let rup of resourceUrlPatKeys) {
+                    if (matchPattern(details.url, rup) && details.url.indexOf(redirectServerHost) !== 0) {
+                        var oUrl = details.url;
+
+                        var p = resourceUrlPats[rup];
+                        if (Object.prototype.toString.call(p) === '[object Array]') { // p is a complex array
+                            sendMsg2Panel(details.tabId, 'requestMatches (complex)', oUrl);
+
+                            var hasReplacePat = (typeof p[0] === 'string'
+                                && (p[0].indexOf('*') >= 0 && p[0].length >= 20));
+
+                            var nUrl = redirectServerHost + '/get' + objToQueryString({
+                                src: hasReplacePat ? patternTrans(oUrl, rup, p[0]) : oUrl,
+                                type: details.type,
+                                mode: (hasReplacePat ? p.slice(1) : p).join(',')
+                            });
+
+                            return { redirectUrl: nUrl };
+                        } else if (typeof p === 'string') {
+                            if (p.indexOf('*') >= 0 || p.length >= 20) { // p is a pattern
+                                sendMsg2Panel(details.tabId, 'requestMatches (with redirectPattern)', oUrl);
+                                return { redirectUrl: patternTrans(oUrl, rup, p) };
+                            } else { // p is a mode
+                                sendMsg2Panel(details.tabId, 'requestMatches (with mode)', oUrl);
+
+                                var nUrl = redirectServerHost + '/get' + objToQueryString({
+                                    src: oUrl,
+                                    type: details.type,
+                                    mode: p
+                                });
+
+                                return { redirectUrl: nUrl };
+                            }
+                        } else if (p) { // p is anything else but true
+                            sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
+
+                            var nUrl = redirectServerHost + '/get' + objToQueryString({
+                                src: oUrl,
+                                type: details.type,
+                                mode: 'normal'
+                            });
+
+                            return { redirectUrl: nUrl };
+                        }
+                    }
                 }
             }
+
+            if (typeOfResourceUrlPats === '[object Array]') {
+                for (let rup of resourceUrlPats) {
+                    if (matchPattern(details.url, rup) && details.url.indexOf(redirectServerHost) !== 0) {
+                        var oUrl = details.url;
+                        sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
+
+                        var nUrl = redirectServerHost + '/get' + objToQueryString({
+                            src: oUrl,
+                            type: details.type,
+                            mode: 'normal'
+                        });
+
+                        return { redirectUrl: nUrl };
+                    }
+                }
+            }
+
             break;
         }
     }

@@ -28,7 +28,8 @@ var msg2log = function (message) {
         case 'requestComes':
             break;
         case 'requestMatches':
-        case 'tabUrlUpdated': {
+        case 'tabUrlUpdated':
+        default: {
             $log.value += JSON.stringify(message) + '\n';
             // maxLen = 4096;
             if (maxLen && $log.value.length > maxLen) {

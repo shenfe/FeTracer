@@ -89,8 +89,8 @@ REQ_HANDLE: {
         return s.substring(0, p);
     };
 
-    app.get('/get/:url', function (req, res) {
-        var url = rmFileNameQuery(decodeURIComponent(req.params.url));
+    app.get('/get', function (req, res) {
+        var url = rmFileNameQuery(decodeURIComponent(req.query.src));
         var destPath = url.substr(url.indexOf('//') + 2);
         console.log('get: ' + url);
         downloadFile(url, destPath, function (filePath) {
