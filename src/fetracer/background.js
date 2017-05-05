@@ -188,7 +188,7 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
                             sendMsg2Panel(details.tabId, 'requestMatches (complex)', oUrl);
 
                             var hasReplacePat = (typeof p[0] === 'string'
-                                && (p[0].indexOf('*') >= 0 && p[0].length >= 20));
+                                && (p[0].length >= 20)); // p[0] is a pattern
 
                             var nUrl = redirectServerHost + '/get' + objToQueryString({
                                 src: hasReplacePat ? patternTrans(oUrl, rup, p[0]) : oUrl,
@@ -198,7 +198,7 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
 
                             return { redirectUrl: nUrl };
                         } else if (typeof p === 'string') {
-                            if (p.indexOf('*') >= 0 || p.length >= 20) { // p is a pattern
+                            if (p.length >= 20) { // p is a pattern
                                 sendMsg2Panel(details.tabId, 'requestMatches (with redirectPattern)', oUrl);
                                 return { redirectUrl: patternTrans(oUrl, rup, p) };
                             } else { // p is a mode
