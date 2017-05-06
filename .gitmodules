@@ -1,0 +1,3 @@
+[submodule "src/inst"]
+	path = src/inst
+	url = https://github.com/shenfe/inst
