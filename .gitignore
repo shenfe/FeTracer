@@ -1,8 +1,5 @@
 *node_modules*
 src/resources
 src/cache
-src/sslcert/csr.pem
-src/sslcert/file.crt
-src/csr.pem
-src/sslcert/private.pem
-src/fetracer.pem
+*.pem
+*.crt
