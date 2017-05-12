@@ -3,6 +3,8 @@ var evaluate = function (s) {
 };
 
 var ObjectParse = function (str) {
+    if (typeof str !== 'string') return str;
+
     var obj;
     try {
         obj = evaluate('return ' + str);
