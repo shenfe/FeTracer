@@ -6,7 +6,7 @@ var urlRuleTable = {};
 
 chrome.storage.sync.get('rule', function (items) {
     try {
-        var _rule = JSON.parse(items.rule);
+        var _rule = Object.parse(items.rule);
         urlRuleTable = _rule;
     } catch (e) {
         console.log('invalid rule stored');

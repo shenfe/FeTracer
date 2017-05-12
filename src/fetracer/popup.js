@@ -7,7 +7,7 @@ var _rule;
 
 var saveRule = function () {
     try {
-        var rule = JSON.parse($rule.value);
+        var rule = Object.parse($rule.value);
         _rule = rule;
         chrome.storage.sync.set({'rule': $rule.value}, function () {
             console.log('rule saved: ' + $rule.value);
@@ -24,11 +24,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     chrome.storage.sync.get('rule', function (items) {
         try {
-            _rule = JSON.parse(items.rule);
+            _rule = Object.parse(items.rule);
         } catch (e) {
             _rule = {};
         }
-        $rule.value = JSON.stringify(_rule, null, 4);
+        $rule.value = js_beautify(Object.stringify(_rule));
     });
 
     $save.addEventListener('click', saveRule, false);

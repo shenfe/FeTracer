@@ -13,6 +13,7 @@
     ],
     "background": {
         "scripts": [
+            "util/object.js",
             "background.js"
         ]
     },
