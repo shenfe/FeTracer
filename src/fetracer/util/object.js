@@ -13,22 +13,37 @@ var ObjectParse = function (str) {
 };
 
 var ObjectStringify = function (obj) {
-    var s = '{',
-        p = [];
+    var type = Object.prototype.toString.call(obj);
 
-    for (var i in obj) {
-        if (!obj.hasOwnProperty(i)) continue;
-        if (typeof obj[i] === 'function') {
-            p.push([i, obj[i].toString()]);
-        } else {
-            p.push([i, JSON.stringify(obj[i])]);
+    switch (type) {
+        case '[object Object]': {
+            var s = '{',
+                p = [];
+
+            for (var i in obj) {
+                if (!obj.hasOwnProperty(i)) continue;
+                if (typeof obj[i] === 'function') {
+                    p.push([i, obj[i].toString()]);
+                } else {
+                    p.push([i, JSON.stringify(obj[i])]);
+                }
+            }
+
+            s += p.map(v => JSON.stringify(v[0]) + ':' + v[1]).join(',');
+
+            s += '}';
+            return s;
         }
+
+        case '[object Array]': {
+            return '[' + obj.map(ObjectStringify).join(',') + ']';
+        }
+
+        default:
+            return JSON.stringify(obj);
     }
 
-    s += p.map(v => JSON.stringify(v[0]) + ':' + v[1]).join(',');
-
-    s += '}';
-    return s;
+    return '';
 };
 
 var ObjectCleanClone = function (obj, ifFunctionsRemain) {
@@ -65,9 +80,13 @@ if (!Object.stringify) {
     Object.stringify = ObjectStringify;
 }
 
+if (!Object.cleanClone) {
+    Object.cleanClone = ObjectCleanClone;
+}
+
 if (!Object.prototype.cleanClone) {
-    Object.prototype.cleanClone = function () {
-        return ObjectCleanClone(this);
+    Object.prototype.cleanClone = function (ifFunctionsRemain) {
+        return ObjectCleanClone(this, ifFunctionsRemain);
     };
 }
 
@@ -96,5 +115,11 @@ if (!Object.prototype.extend) {
 /* export module */
 
 if (typeof module !== 'undefined') {
-    module.exports = { ObjectParse, ObjectStringify, ObjectFilter, ObjectEntend };
+    module.exports = {
+        ObjectParse,
+        ObjectStringify,
+        ObjectCleanClone,
+        ObjectFilter,
+        ObjectEntend
+    };
 }
