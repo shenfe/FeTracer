@@ -249,6 +249,21 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
     'blocking' // or 'requestBody'
 ]);
 
+const setHeaders = function (headerArr, headerObj) {
+    var re = [];
+    for (let i of headerArr) {
+        if (!headerObj.hasOwnProperty(i.name)) {
+            re.push(i);
+        } else if (headerObj.hasOwnProperty(i.name) && headerObj[i.name] !== undefined) {
+            re.push({
+                name: i.name,
+                value: headerObj[i.name]
+            });
+        }
+    }
+    return re;
+};
+
 // modify request headers
 chrome.webRequest.onBeforeSendHeaders.addListener(function (details) {
     if (!$redirectTypeFilter[details.type]) return;
@@ -269,14 +284,11 @@ chrome.webRequest.onBeforeSendHeaders.addListener(function (details) {
                             //TODO
                             sendMsg2Panel(details.tabId, 'requestMatches (req-header)', oUrl);
                             if (p.request.headers) {
-                                for (var k in p.request.headers) {
-                                    details.requestHeaders[k] = p.request.headers[k];
-                                }
+                                return { requestHeaders: setHeaders(details.requestHeaders, p.request.headers) };
                             }
-
-                            return { requestHeaders: details.requestHeaders };
                         }
                     }
+                    break;
                 }
             }
         }
@@ -305,14 +317,11 @@ chrome.webRequest.onHeadersReceived.addListener(function (details) {
                             //TODO
                             sendMsg2Panel(details.tabId, 'requestMatches (res-header)', oUrl);
                             if (p.response.headers) {
-                                for (var k in p.response.headers) {
-                                    details.responseHeaders[k] = p.response.headers[k];
-                                }
+                                return { responseHeaders: setHeaders(details.responseHeaders, p.response.headers) };
                             }
-
-                            return { responseHeaders: details.responseHeaders };
                         }
                     }
+                    break;
                 }
             }
         }
