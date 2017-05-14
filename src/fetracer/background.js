@@ -1,30 +1,31 @@
-var connections = {};
+var $connections = {};
 
-var tabUrls = {};
+var $tabUrls = {};
 
-var urlRuleTable = {};
+var $ruleTable = {};
 
 chrome.storage.sync.get('rule', function (items) {
     try {
         var _rule = Object.parse(items.rule);
-        urlRuleTable = _rule;
+        $ruleTable = _rule;
     } catch (e) {
         console.log('invalid rule stored');
     }
 });
 
-var msgHistory = {};
+var $msgHistory = {};
 
-var redirectTypeFilter = {
+const $redirectTypeFilter = {
     // stylesheet: true,
-    script: true
+    script: true,
+    xmlhttprequest: true
 };
 
-var redirectWhiteList = {};
+var $redirectWhiteList = {};
 
-var redirectServerHost = 'https://127.0.0.1:4004';
+const $redirectServerHost = 'https://127.0.0.1:4004';
 
-var copy = function (obj, props) {
+const copy = function (obj, props) {
     var re;
     if (props && props.length) {
         re = {};
@@ -37,23 +38,14 @@ var copy = function (obj, props) {
     return JSON.parse(JSON.stringify(re));
 };
 
-var escapeRegExp = function (str) {
+const escapeRegExp = function (str) {
     return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&');
 };
 
-var matchPattern = function (url, pat) {
+const matchPattern = function (url, pat) {
     pat = pat.split('*').map(escapeRegExp).join('(.*)');
     var reg = new RegExp(pat, 'g');
     return reg.test(url);
-};
-
-var objToQueryString = function (obj) {
-    var queries = [];
-    for (var i in obj) {
-        if (!obj.hasOwnProperty(i)) continue;
-        queries.push(i + '=' + encodeURIComponent(obj[i]));
-    }
-    return queries.length ? ('?' + queries.join('&')) : '';
 };
 
 if (!String.prototype.replaceAll) {
@@ -63,7 +55,7 @@ if (!String.prototype.replaceAll) {
     };
 }
 
-var patternTrans = function (url, matchPat, replacePat) {
+const patternTrans = function (url, matchPat, replacePat) {
     matchPat = matchPat.split('*').map(escapeRegExp).join('(.*)');
     var reg = new RegExp(matchPat, 'g');
     var res = reg.exec(url);
@@ -77,12 +69,12 @@ var patternTrans = function (url, matchPat, replacePat) {
     } else return null;
 };
 
-var isPattern = function (p) {
+const isPattern = function (p) {
     if (typeof p !== 'string') return false;
     return p.indexOf('${') >= 0 || p.indexOf('.') > 0;
 };
 
-var sendMsg2Panel = function (tid, type, data) {
+const sendMsg2Panel = function (tid, type, data) {
     var msg;
     switch (type) {
         case 'contentScriptMsg':
@@ -95,17 +87,17 @@ var sendMsg2Panel = function (tid, type, data) {
                 content: data
             };
     }
-    if (tid in connections) {
-        if (msgHistory[tid] && msgHistory[tid].length) {
-            msgHistory[tid].forEach(m => {
-                connections[tid].postMessage(m);
+    if (tid in $connections) {
+        if ($msgHistory[tid] && $msgHistory[tid].length) {
+            $msgHistory[tid].forEach(m => {
+                $connections[tid].postMessage(m);
             });
-            delete msgHistory[tid];
+            delete $msgHistory[tid];
         }
-        connections[tid].postMessage(msg);
+        $connections[tid].postMessage(msg);
     } else {
-        if (!msgHistory[tid]) msgHistory[tid] = [];
-        msgHistory[tid].push(msg);
+        if (!$msgHistory[tid]) $msgHistory[tid] = [];
+        $msgHistory[tid].push(msg);
     }
 };
 
@@ -116,7 +108,7 @@ chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (changeInfo.url) {
-        tabUrls[tabId] = changeInfo.url;
+        $tabUrls[tabId] = changeInfo.url;
         sendMsg2Panel(tabId, 'tabUrlUpdated', changeInfo.url);
     }
 });
@@ -129,7 +121,7 @@ chrome.runtime.onConnect.addListener(function (port) {
         // DevTools page, so we need to send it explicitly.
         switch (message.name) {
             case 'init': {
-                connections[message.tabId] = port;
+                $connections[message.tabId] = port;
                 return;
             }
         }
@@ -141,10 +133,10 @@ chrome.runtime.onConnect.addListener(function (port) {
     port.onDisconnect.addListener(function (port) {
         port.onMessage.removeListener(extensionListener);
 
-        var tabs = Object.keys(connections);
+        var tabs = Object.keys($connections);
         for (var i = 0, len = tabs.length; i < len; i++) {
-            if (connections[tabs[i]] === port) {
-                delete connections[tabs[i]];
+            if ($connections[tabs[i]] === port) {
+                delete $connections[tabs[i]];
                 break;
             }
         }
@@ -162,93 +154,169 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
     // Communicate with Popup page about the rule
     if (request.name === 'rule') {
-        urlRuleTable = request.content;
+        $ruleTable = request.content;
         sendResponse();
     }
 
     return true;
 });
 
-// Request hijacking
+/* Request hijacking */
+
+// cancel or redirect
 chrome.webRequest.onBeforeRequest.addListener(function (details) {
-    sendMsg2Panel(details.tabId, 'requestComes', copy(details, ['url', 'type']));
+    if (!$redirectTypeFilter[details.type]) return;
 
-    if (!redirectTypeFilter[details.type]) return;
+    for (var tup in $ruleTable) {
+        if (!matchPattern($tabUrls[details.tabId], tup)) continue;
 
-    var tabUrlPatterns = Object.keys(urlRuleTable);
-    for (let tup of tabUrlPatterns) {
-        if (matchPattern(tabUrls[details.tabId], tup)) {
-            var resourceUrlPats = urlRuleTable[tup];
+        sendMsg2Panel(details.tabId, 'requestComes', copy(details, ['url', 'type']));
 
-            var typeOfResourceUrlPats = Object.prototype.toString.call(resourceUrlPats);
+        var resourceUrlPats = $ruleTable[tup];
 
-            if (typeOfResourceUrlPats === '[object Object]') {
-                var resourceUrlPatKeys = Object.keys(resourceUrlPats);
-                for (let rup of resourceUrlPatKeys) {
-                    if (matchPattern(details.url, rup) && details.url.indexOf(redirectServerHost) !== 0) {
-                        var oUrl = details.url;
+        var typeOfResourceUrlPats = Object.type(resourceUrlPats);
 
-                        var p = resourceUrlPats[rup];
-                        if (Object.prototype.toString.call(p) === '[object Array]') { // p is a complex array
-                            sendMsg2Panel(details.tabId, 'requestMatches (complex)', oUrl);
+        if (typeOfResourceUrlPats === 'object') {
+            var oUrl = details.url;
+            var pats = [];
 
-                            var hasReplacePat = isPattern(p[0]); // p[0] is a pattern
+            for (var rup in resourceUrlPats) {
+                if (matchPattern(details.url, rup) && details.url.indexOf($redirectServerHost) !== 0) {
+                    var p = resourceUrlPats[rup];
 
-                            var nUrl = redirectServerHost + '/get' + objToQueryString({
-                                src: hasReplacePat ? patternTrans(oUrl, rup, p[0]) : oUrl,
-                                type: details.type,
-                                mode: (hasReplacePat ? p.slice(1) : p).join(',')
-                            });
+                    if (Object.type(p) === 'object' && typeof p.redirect === 'string') { // p is an object and has 'redirect' property
+                        var ru = patternTrans(oUrl, rup, p.redirect);
+                        sendMsg2Panel(details.tabId, 'requestRedirects', `${oUrl} => ${ru}`);
+                        return { redirectUrl: ru };
+                    } else if (Object.type(p) === 'array') { // p is a complex array
+                        var hasReplacePat = isPattern(p[0]); // p[0] is a pattern
+                        if (hasReplacePat) {
+                            var ru = patternTrans(oUrl, rup, p[0]);
+                            if (isPattern(pats[0])) pats[0] = ru;
+                            else pats.unshift(ru);
+                            pats = pats.concat(p.slice(1));
+                        } else {
+                            pats = pats.concat(p);
+                        }
+                    } else if (typeof p === 'string') {
+                        if (isPattern(p)) { // p is a pattern
+                            var ru = patternTrans(oUrl, rup, p);
+                            if (isPattern(pats[0])) pats[0] = ru;
+                            else pats.unshift(ru);
+                        } else { // p is a mode
+                            pats.push(p);
+                        }
+                    } else if (p === true) { // p is 'true'
+                        pats.push('normal');
+                    }
+                }
+            }
 
-                            return { redirectUrl: nUrl };
-                        } else if (typeof p === 'string') {
-                            if (isPattern(p)) { // p is a pattern
-                                sendMsg2Panel(details.tabId, 'requestMatches (with redirectPattern)', oUrl);
-                                return { redirectUrl: patternTrans(oUrl, rup, p) };
-                            } else { // p is a mode
-                                sendMsg2Panel(details.tabId, 'requestMatches (with mode)', oUrl);
+            if (pats.length) {
+                sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
 
-                                var nUrl = redirectServerHost + '/get' + objToQueryString({
-                                    src: oUrl,
-                                    type: details.type,
-                                    mode: p
-                                });
+                var hasReplacePat = isPattern(pats[0]);
+                var nUrl = $redirectServerHost + '/get' + Object.toQueryString({
+                    src: hasReplacePat ? pats[0] : oUrl,
+                    type: details.type,
+                    mode: (hasReplacePat ? pats.slice(1) : pats).join(',')
+                });
 
-                                return { redirectUrl: nUrl };
+                return { redirectUrl: nUrl };
+            }
+        }
+
+        if (typeOfResourceUrlPats === 'array') {
+            for (let rup of resourceUrlPats) {
+                if (matchPattern(details.url, rup) && details.url.indexOf($redirectServerHost) !== 0) {
+                    var oUrl = details.url;
+                    sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
+
+                    var nUrl = $redirectServerHost + '/get' + Object.toQueryString({
+                        src: oUrl,
+                        type: details.type,
+                        mode: 'normal'
+                    });
+
+                    return { redirectUrl: nUrl };
+                }
+            }
+        }
+
+        break;
+    }
+}, { urls: ['http://*/*', 'https://*/*'] }, [
+    'blocking' // or 'requestBody'
+]);
+
+// modify request headers
+chrome.webRequest.onBeforeSendHeaders.addListener(function (details) {
+    if (!$redirectTypeFilter[details.type]) return;
+
+    for (var tup in $ruleTable) {
+        if (!matchPattern($tabUrls[details.tabId], tup)) continue;
+
+        var resourceUrlPats = $ruleTable[tup];
+
+        if (Object.type(resourceUrlPats) === 'object') {
+            for (var rup in resourceUrlPats) {
+                if (matchPattern(details.url, rup) && details.url.indexOf($redirectServerHost) !== 0) {
+                    var oUrl = details.url;
+
+                    var p = resourceUrlPats[rup];
+                    if (Object.type(p) === 'object') {
+                        if (details.type === 'xmlhttprequest' && p.request) {
+                            //TODO
+                            sendMsg2Panel(details.tabId, 'requestMatches (req-header)', oUrl);
+                            if (p.request.headers) {
+                                for (var k in p.request.headers) {
+                                    details.requestHeaders[k] = p.request.headers[k];
+                                }
                             }
-                        } else if (p) { // p is anything else but true
-                            sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
 
-                            var nUrl = redirectServerHost + '/get' + objToQueryString({
-                                src: oUrl,
-                                type: details.type,
-                                mode: 'normal'
-                            });
-
-                            return { redirectUrl: nUrl };
+                            return { requestHeaders: details.requestHeaders };
                         }
                     }
                 }
             }
+        }
 
-            if (typeOfResourceUrlPats === '[object Array]') {
-                for (let rup of resourceUrlPats) {
-                    if (matchPattern(details.url, rup) && details.url.indexOf(redirectServerHost) !== 0) {
-                        var oUrl = details.url;
-                        sendMsg2Panel(details.tabId, 'requestMatches', oUrl);
+        break;
+    }
+}, { urls: ['http://*/*', 'https://*/*'] }, ['requestHeaders']);
 
-                        var nUrl = redirectServerHost + '/get' + objToQueryString({
-                            src: oUrl,
-                            type: details.type,
-                            mode: 'normal'
-                        });
+// modify response headers
+chrome.webRequest.onHeadersReceived.addListener(function (details) {
+    if (!$redirectTypeFilter[details.type]) return;
 
-                        return { redirectUrl: nUrl };
+    for (var tup in $ruleTable) {
+        if (!matchPattern($tabUrls[details.tabId], tup)) continue;
+
+        var resourceUrlPats = $ruleTable[tup];
+
+        if (Object.type(resourceUrlPats) === 'object') {
+            for (var rup in resourceUrlPats) {
+                if (matchPattern(details.url, rup) && details.url.indexOf($redirectServerHost) !== 0) {
+                    var oUrl = details.url;
+
+                    var p = resourceUrlPats[rup];
+                    if (Object.type(p) === 'object') {
+                        if (details.type === 'xmlhttprequest' && p.response) {
+                            //TODO
+                            sendMsg2Panel(details.tabId, 'requestMatches (res-header)', oUrl);
+                            if (p.response.headers) {
+                                for (var k in p.response.headers) {
+                                    details.responseHeaders[k] = p.response.headers[k];
+                                }
+                            }
+
+                            return { responseHeaders: details.responseHeaders };
+                        }
                     }
                 }
             }
-
-            break;
         }
+
+        break;
     }
-}, {urls: ['http://*/*', 'https://*/*']}, ['blocking']);
+}, { urls: ['http://*/*', 'https://*/*'] }, ['responseHeaders']);

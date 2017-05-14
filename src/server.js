@@ -63,14 +63,15 @@ REQ_HANDLE: {
     var downloadFile = function (fileUrl, filePath, callback) {
         var targetFilePath = conf.cacheDir + '/' + filePath;
         ensurePath(targetFilePath.substring(0, targetFilePath.lastIndexOf('/')));
-        var wget = 'wget -O ' + targetFilePath + ' ' + fileUrl;
+        var wget = "wget -O '" + targetFilePath + "' '" + fileUrl + "'";
         var child = exec(wget, function(err, stdout, stderr) {
             if (err) throw err;
             else callback(filePath);
         });
     };
     var rmFileNameQuery = function (s) {
-        var p = s.lastIndexOf('.') + 1;
+        var p0 = s.lastIndexOf('.') + 1;
+        var p = p0;
         var chatCodes = {
             'a': 'a'.charCodeAt(0),
             'z': 'z'.charCodeAt(0),
@@ -86,6 +87,7 @@ REQ_HANDLE: {
                 break;
             }
         }
+        if (p === p0) p = len;
         return s.substring(0, p);
     };
 

@@ -26,7 +26,6 @@ var msg2log = function (message) {
     var maxLen;
     switch (message.name) {
         case 'requestComes':
-            break;
         case 'requestMatches':
         case 'tabUrlUpdated':
         default: {

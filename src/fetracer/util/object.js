@@ -1,3 +1,14 @@
+/**
+ * @Author: Ke Shen <godzilla>
+ * @Date:   2017-05-13 01:48:00
+ * @Email:  keshen@sohu-inc.com
+ * @Last modified by:   godzilla
+ * @Last modified time: 2017-05-13 09:13:18
+ */
+
+
+/* base functions */
+
 var evaluate = function (s) {
     return (new Function(s))();
 };
@@ -72,6 +83,34 @@ var ObjectEntend = function (dest, ...src) {
     return dest;
 };
 
+var ObjectToQueryString = function (obj) {
+    var queries = [];
+    for (var i in obj) {
+        if (!obj.hasOwnProperty(i)) continue;
+        queries.push(i + '=' + encodeURIComponent(obj[i]));
+    }
+    return queries.length ? ('?' + queries.join('&')) : '';
+};
+
+var ObjectFromQueryString = function (str) {
+    if (typeof str !== 'string' || str === '' || str === '?') return {};
+
+    if (str.charAt(0) === '?') str = str.substr(1);
+
+    return str.split('&').filter(v => v.indexOf('=') >= 0)
+        .map(v => v.split('=').map(decodeURIComponent))
+        .filter(v => v.length === 2)
+        .reduce((prev, next) => {
+            prev[next[0]] = next[1];
+            return prev;
+        }, {});
+};
+
+var TypeOfValue = function (obj) {
+    var t = Object.prototype.toString.call(obj);
+    return t.substring(8, t.length - 1).toLowerCase();
+};
+
 /* extend Object functions */
 
 if (!Object.parse) {
@@ -114,6 +153,24 @@ if (!Object.prototype.extend) {
     };
 }
 
+if (!Object.toQueryString) {
+    Object.toQueryString = ObjectToQueryString;
+}
+
+if (!Object.prototype.toQueryString) {
+    Object.prototype.toQueryString = function () {
+        return ObjectToQueryString(this);
+    };
+}
+
+if (!Object.fromQueryString) {
+    Object.fromQueryString = ObjectFromQueryString;
+}
+
+if (!Object.type) {
+    Object.type = TypeOfValue;
+}
+
 /* export module */
 
 if (typeof module !== 'undefined') {
@@ -122,6 +179,9 @@ if (typeof module !== 'undefined') {
         ObjectStringify,
         ObjectCleanClone,
         ObjectFilter,
-        ObjectEntend
+        ObjectEntend,
+        ObjectToQueryString,
+        ObjectFromQueryString,
+        TypeOfValue
     };
 }
