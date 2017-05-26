@@ -3,3 +3,4 @@ src/resources
 src/cache
 *.pem
 *.crt
+.idea
