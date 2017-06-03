@@ -16,6 +16,7 @@ chrome.storage.sync.get('rule', function (items) {
 var $msgHistory = {};
 
 const $redirectTypeFilter = {
+    image: true,
     stylesheet: true,
     script: true,
     xmlhttprequest: true
