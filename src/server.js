@@ -99,9 +99,11 @@ REQ_HANDLE: {
             var fileFullPath = conf.pullDir + '/' + filePath;
             ensurePath(fileFullPath.substring(0, fileFullPath.lastIndexOf('/')));
             var fileContent = fs.readFileSync(conf.cacheDir + '/' + filePath, 'utf8');
-            scriptPipelines.forEach(p => {
-                fileContent = p(fileContent);
-            });
+            if (req.query.type === 'script') {
+                scriptPipelines.forEach(p => {
+                    fileContent = p(fileContent);
+                });
+            }
             fs.writeFileSync(fileFullPath, fileContent);
             // res.sendFile(__dirname + '/' + fileFullPath);
             res.redirect('/' + filePath);
