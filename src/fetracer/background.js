@@ -202,8 +202,9 @@ chrome.webRequest.onBeforeRequest.addListener(function (details) {
                     } else if (typeof p === 'string') {
                         if (isPattern(p)) { // p is a pattern
                             var ru = patternTrans(oUrl, rup, p);
-                            if (isPattern(pats[0])) pats[0] = ru;
-                            else pats.unshift(ru);
+                            // if (isPattern(pats[0])) pats[0] = ru;
+                            // else pats.unshift(ru);
+                            return { redirectUrl: ru };
                         } else { // p is a mode
                             pats.push(p);
                         }
