@@ -61,6 +61,9 @@ SCRIPT_PARSE: {
 
 REQ_HANDLE: {
     var downloadFile = function (fileUrl, filePath, callback) {
+        if (filePath.split('/')[0].indexOf(':') > 0) { // contains port number
+            filePath = filePath.replace(':', '--');
+        }
         var targetFilePath = conf.cacheDir + '/' + filePath;
         ensurePath(targetFilePath.substring(0, targetFilePath.lastIndexOf('/')));
         var wget = "wget -O '" + targetFilePath + "' '" + fileUrl + "'";
